@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -13,10 +14,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 type Todo struct {
-	Id       primitive.ObjectID `json:"id" bson:"_id"`
-    Title string  	`json:"title"`
-    Des  string 		`json:"des"`
-    Completed bool 	`json:"completed"`
+	Id        primitive.ObjectID  `json:"id" bson:"_id"`
+    Title     string  	          `json:"title"`
+    Des       string 		      `json:"des"`
+    Completed bool 	              `json:"completed"`
 }
 func main() {
 	router := gin.Default()
@@ -47,6 +48,7 @@ func main() {
 	//Create new todo
 	router.POST("/todos", func(c *gin.Context){
 		var newTodo Todo
+		newTodo.Id = primitive.NewObjectID()
 		if err := c.BindJSON(&newTodo); err != nil {
 			return
 		}
@@ -55,6 +57,7 @@ func main() {
 			log.Fatal(err)
 		 }
 		id := res.InsertedID
+		fmt.Println(res)
 		c.JSON(http.StatusCreated, gin.H{
 			"status": "success",
 			"_id": id,
@@ -74,7 +77,6 @@ func main() {
 		}
 		var result Todo
 		err = collection.FindOne(context.TODO(), bson.D{{"_id", todoIdObject}}).Decode(&result)
-
 		if result.Title == "" && result.Des == "" {
 				c.JSON(http.StatusNotFound, gin.H{
 				"status": "failure",
@@ -115,5 +117,51 @@ func main() {
 			return
 		}
 	})
+
+	// Update todo by id
+	router.PUT("todos/:id", func(c *gin.Context){
+		var id = c.Param("id")
+		todoIdObject, err := primitive.ObjectIDFromHex(id)
+		var updateTodo Todo
+		if err := c.BindJSON(&updateTodo); err != nil {
+			return
+		}
+		fmt.Println(updateTodo.Title)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status": "failure",
+				"message": "Id invalid",
+			})
+			return
+		}
+		var result Todo
+		err = collection.FindOne(context.TODO(), bson.D{{"_id", todoIdObject}}).Decode(&result)
+		if result.Title == "" && result.Des == "" {
+				c.JSON(http.StatusNotFound, gin.H{
+				"status": "failure",
+				"message": "Todo not found!",
+			})
+			return
+		}else{
+				opts := options.Update().SetUpsert(true)
+				result, err := collection.UpdateOne(context.TODO(), bson.D{{"_id", todoIdObject}}, bson.D{{"$set", bson.D{{"title", updateTodo.Title}, {"des", updateTodo.Des},{"completed", updateTodo.Completed}}}},opts)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if result.MatchedCount != 0 {
+					c.JSON(http.StatusOK, gin.H{
+						"status": "success",
+						"item": "Updated todo successfully!",
+					})
+					return
+				}else{
+					c.JSON(http.StatusBadRequest, gin.H{
+						"status": "failure",
+						"message": "Todo update failure!",
+					})
+					return
+				}
+			}
+		})
 	router.Run("localhost:3000")
 }
