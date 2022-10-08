@@ -1,0 +1,6 @@
+.prettierrc
+.vscode
+LICENSE
+README.md
+mongodb.json
+.gitignore

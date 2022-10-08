@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+    trandung2001:
+        container_name: /gin_server
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: Dockerfile
+        env_file: .env
+        ports:
+            - 3000:3000
+        networks:
+            - trandung
+networks:
+    trandung:
